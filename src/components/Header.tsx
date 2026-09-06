@@ -10,7 +10,8 @@ import {
   Cloud, 
   HardDrive,
   User as UserIcon,
-  LogOut
+  LogOut,
+  X
 } from 'lucide-react';
 import type { User } from 'firebase/auth';
 import type { FairShareGroup, GroupSummary } from '../types/fairshare';
@@ -108,74 +109,68 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             {showEventDropdown && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '6px',
-                  width: '260px',
-                  background: 'var(--color-white)',
-                  border: '1px solid var(--color-silver)',
-                  borderRadius: 'var(--radius-cards)',
-                  boxShadow: 'var(--shadow-modal)',
-                  padding: '8px',
-                  zIndex: 60,
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px 8px 8px', borderBottom: '1px solid var(--color-silver)' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-slate)', textTransform: 'uppercase' }}>
-                    Mis Eventos
-                  </span>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => {
-                      setShowEventDropdown(false);
-                      onCreateNewGroup();
-                    }}
-                    style={{ padding: '2px 6px', fontSize: '11px' }}
-                  >
-                    <Plus size={12} />
-                    <span>Nuevo</span>
-                  </button>
-                </div>
+              <>
+                {/* Backdrop for closing when clicking outside */}
+                <div 
+                  className="dropdown-backdrop"
+                  onClick={() => setShowEventDropdown(false)}
+                />
 
-                <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
-                  {groupsIndex.length === 0 ? (
-                    <div style={{ padding: '12px 8px', fontSize: '12px', color: 'var(--color-slate)', textAlign: 'center' }}>
-                      No tienes otros eventos creados aún.
-                    </div>
-                  ) : (
-                    groupsIndex.map((g) => (
+                <div className="events-dropdown-menu animate-fade">
+                  <div className="events-dropdown-header">
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-slate)', textTransform: 'uppercase' }}>
+                      Mis Eventos
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <button
-                        key={g.id}
-                        type="button"
+                        className="btn btn-secondary btn-sm"
                         onClick={() => {
-                          onSelectGroup(g.id);
                           setShowEventDropdown(false);
+                          onCreateNewGroup();
                         }}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-start',
-                          padding: '6px 8px',
-                          borderRadius: 'var(--radius-inputs)',
-                          background: g.id === group.id ? 'var(--color-silver-light)' : 'transparent',
-                          textAlign: 'left',
-                          width: '100%',
-                        }}
+                        style={{ padding: '3px 8px', fontSize: '11px' }}
                       >
-                        <span style={{ fontSize: '13px', fontWeight: g.id === group.id ? 600 : 500, color: 'var(--color-graphite)' }}>
-                          {g.title || 'Sin título'}
-                        </span>
-                        <span style={{ fontSize: '11px', color: 'var(--color-slate)' }}>
-                          {g.participantCount} personas • {g.expenseCount} gastos
-                        </span>
+                        <Plus size={12} />
+                        <span>Nuevo</span>
                       </button>
-                    ))
-                  )}
+                      <button
+                        className="btn btn-ghost btn-sm close-dropdown-btn"
+                        onClick={() => setShowEventDropdown(false)}
+                        style={{ padding: '4px' }}
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="events-dropdown-list">
+                    {groupsIndex.length === 0 ? (
+                      <div style={{ padding: '16px 8px', fontSize: '12px', color: 'var(--color-slate)', textAlign: 'center' }}>
+                        No tienes otros eventos creados aún.
+                      </div>
+                    ) : (
+                      groupsIndex.map((g) => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          onClick={() => {
+                            onSelectGroup(g.id);
+                            setShowEventDropdown(false);
+                          }}
+                          className={`event-dropdown-item ${g.id === group.id ? 'active' : ''}`}
+                        >
+                          <span className="event-item-title">
+                            {g.title || 'Sin título'}
+                          </span>
+                          <span className="event-item-meta">
+                            {g.participantCount} personas • {g.expenseCount} gastos
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
           </div>
 

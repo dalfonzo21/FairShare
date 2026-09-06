@@ -49,7 +49,7 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
   const maxAbsBalance = Math.max(...balances.map((b) => Math.abs(b.netBalance)), 1);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Smart Settlement Transfers Card */}
       <div className="glass-panel animate-fade">
         <div className="panel-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
@@ -100,8 +100,8 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
                     >
                       {getInitials(tx.fromPerson.name)}
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--color-graphite)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="settlement-name">
                         {tx.fromPerson.name}
                       </div>
                       <span style={{ fontSize: '11px', color: 'var(--color-danger)' }}>
@@ -128,8 +128,8 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
                     >
                       {getInitials(tx.toPerson.name)}
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--color-graphite)' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="settlement-name">
                         {tx.toPerson.name}
                       </div>
                       <span style={{ fontSize: '11px', color: 'var(--color-success)' }}>
@@ -143,7 +143,7 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
                 <button
                   className={`btn btn-sm ${tx.isSettled ? 'btn-secondary' : 'btn-primary'}`}
                   onClick={() => handleToggle(tx.id, tx.isSettled)}
-                  style={{ minWidth: '120px' }}
+                  style={{ minWidth: '110px' }}
                 >
                   {tx.isSettled ? (
                     <>
@@ -184,18 +184,18 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
 
             return (
               <div key={b.person.id} className="balance-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '180px' }}>
+                <div className="balance-user-info">
                   <div
                     className="avatar-circle"
                     style={{ backgroundColor: b.person.color, color: '#ffffff', width: 28, height: 28, fontSize: '11px' }}
                   >
                     {getInitials(b.person.name)}
                   </div>
-                  <div>
-                    <div style={{ fontWeight: 500, fontSize: '13px', color: 'var(--color-graphite)' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="balance-user-name">
                       {b.person.name}
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--color-slate)' }}>
+                    <div className="balance-user-sub">
                       Pagó {formatCurrency(b.totalPaid, group.currency)}
                     </div>
                   </div>
@@ -212,7 +212,7 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
                   />
                 </div>
 
-                <div style={{ textAlign: 'right', minWidth: '130px' }}>
+                <div className="balance-amount-info">
                   <div
                     style={{
                       fontWeight: 600,

@@ -69,7 +69,6 @@ export function App() {
       setGroupsIndex(getStoredGroupsIndex(uid));
 
       if (user && isCloud) {
-        // Fetch cloud index for this user
         fetchUserCloudGroupsIndex(user.uid).then((cloudList) => {
           if (cloudList.length > 0) {
             setGroupsIndex(cloudList);
@@ -329,14 +328,15 @@ export function App() {
         {/* Key Metrics Overview */}
         <StatsOverview group={group} settlements={settlements} />
 
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs (Responsive: full labels on desktop, short compact on mobile) */}
         <div className="tabs-navigation">
           <button
             className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
             onClick={() => setActiveTab('all')}
           >
             <Layers size={14} />
-            <span>Vista Completa</span>
+            <span className="tab-label-full">Vista Completa</span>
+            <span className="tab-label-short">Todo</span>
           </button>
 
           <button
@@ -344,7 +344,8 @@ export function App() {
             onClick={() => setActiveTab('settlement')}
           >
             <ArrowLeftRight size={14} />
-            <span>Liquidaciones & Deudas</span>
+            <span className="tab-label-full">Liquidaciones & Deudas</span>
+            <span className="tab-label-short">Deudas</span>
             {settlements.filter((s) => !s.isSettled).length > 0 && (
               <span className="tab-badge">
                 {settlements.filter((s) => !s.isSettled).length}
@@ -357,7 +358,8 @@ export function App() {
             onClick={() => setActiveTab('expenses')}
           >
             <Receipt size={14} />
-            <span>Gastos ({group.expenses.length})</span>
+            <span className="tab-label-full">Gastos ({group.expenses.length})</span>
+            <span className="tab-label-short">Gastos ({group.expenses.length})</span>
           </button>
 
           <button
@@ -365,14 +367,14 @@ export function App() {
             onClick={() => setActiveTab('participants')}
           >
             <Users size={14} />
-            <span>Participantes ({group.participants.length})</span>
+            <span className="tab-label-full">Participantes ({group.participants.length})</span>
+            <span className="tab-label-short">Personas ({group.participants.length})</span>
           </button>
         </div>
 
         {/* Dynamic Tab Views */}
         {activeTab === 'all' && (
           <div className="content-grid">
-            {/* Quick Dual Columns: Participants + Expenses */}
             <div className="dual-column-layout">
               <ParticipantList
                 participants={group.participants}

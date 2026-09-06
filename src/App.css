@@ -80,6 +80,85 @@
   flex-wrap: wrap;
 }
 
+/* Events Dropdown Menu */
+.dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: transparent;
+}
+
+.events-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: auto;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  background: var(--color-white);
+  border: 1px solid var(--color-silver);
+  border-radius: var(--radius-cards);
+  box-shadow: var(--shadow-modal);
+  padding: 8px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+}
+
+.events-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px 8px 8px;
+  border-bottom: 1px solid var(--color-silver);
+}
+
+.close-dropdown-btn {
+  display: none;
+}
+
+.events-dropdown-list {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0 2px 0;
+}
+
+.event-dropdown-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: var(--radius-inputs);
+  background: transparent;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s ease;
+}
+
+.event-dropdown-item:hover {
+  background: var(--color-paper);
+}
+
+.event-dropdown-item.active {
+  background: var(--color-silver-light);
+  border-left: 3px solid var(--color-ink);
+}
+
+.event-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-graphite);
+}
+
+.event-item-meta {
+  font-size: 11px;
+  color: var(--color-slate);
+  margin-top: 1px;
+}
+
 /* Event Title Bar Card */
 .event-title-card {
   background: var(--color-white);
@@ -254,6 +333,14 @@
 .tab-btn:not(.active) .tab-badge {
   background: var(--color-silver);
   color: var(--color-graphite);
+}
+
+.tab-label-full {
+  display: inline;
+}
+
+.tab-label-short {
+  display: none;
 }
 
 /* Content Grid */
@@ -568,6 +655,45 @@
   border-radius: var(--radius-pills);
 }
 
+.balance-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.balance-user-name {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--color-graphite);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.balance-user-sub {
+  font-size: 11px;
+  color: var(--color-slate);
+  white-space: nowrap;
+}
+
+.balance-amount-info {
+  text-align: right;
+  min-width: 85px;
+  flex-shrink: 0;
+}
+
+.settlement-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--color-graphite);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;
@@ -827,7 +953,7 @@
   }
 
   .brand-tagline {
-    display: none; /* Hide tagline on mobile for clean header */
+    display: none;
   }
 
   .header-actions {
@@ -836,6 +962,41 @@
 
   .header-actions .btn span {
     font-size: 11px;
+  }
+
+  /* Dropdown Bottom-Sheet on Mobile */
+  .dropdown-backdrop {
+    background: rgba(16, 16, 16, 0.45);
+    backdrop-filter: blur(2px);
+  }
+
+  .events-dropdown-menu {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    padding: 16px 16px 28px 16px;
+    z-index: 70;
+    animation: slideInUp 0.2s ease-out;
+  }
+
+  .close-dropdown-btn {
+    display: inline-flex;
+  }
+
+  .events-dropdown-list {
+    max-height: 50vh;
+  }
+
+  .event-dropdown-item {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-silver);
+    border-radius: 0;
   }
 
   /* 2x2 grid for stats on mobile */
@@ -866,9 +1027,61 @@
     font-size: 10px;
   }
 
+  /* Tabs Navigation on Mobile: Full-width responsive 4-segment control */
+  .tabs-navigation {
+    display: flex;
+    width: 100%;
+    align-self: stretch;
+    justify-content: space-between;
+    gap: 3px;
+    padding: 3px;
+    background: var(--color-silver-light);
+    border-radius: var(--radius-inputs);
+    border: 1px solid var(--color-silver);
+    overflow-x: hidden;
+  }
+
+  .tab-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 8px 2px;
+    justify-content: center;
+    gap: 3px;
+    font-size: 11px;
+    border-radius: var(--radius-sm);
+  }
+
+  .tab-label-full {
+    display: none;
+  }
+
+  .tab-label-short {
+    display: inline;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tab-badge {
+    padding: 0 4px;
+    font-size: 10px;
+  }
+
   .event-title-card {
     padding: 10px 12px;
     gap: 8px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .event-title-input-group {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .currency-select-wrapper {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .event-title-input {
@@ -896,15 +1109,26 @@
   .settlement-flow {
     justify-content: space-between;
     width: 100%;
+    gap: 4px;
+  }
+
+  .settlement-person {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .settlement-person .settlement-name {
+    max-width: 80px;
   }
 
   .settlement-arrow-box {
     padding: 0 2px;
+    flex-shrink: 0;
   }
 
   .settlement-amount-pill {
-    font-size: 12px;
-    padding: 2px 8px;
+    font-size: 11px;
+    padding: 2px 6px;
   }
 
   /* Responsive Expense Item */
@@ -942,12 +1166,21 @@
 
   /* Balances row on mobile */
   .balance-row {
-    padding: 8px 6px;
-    gap: 8px;
+    padding: 8px 4px;
+    gap: 6px;
+  }
+
+  .balance-user-info {
+    gap: 6px;
   }
 
   .balance-progress-container {
-    max-width: 90px;
+    max-width: 60px;
+    min-width: 30px;
+  }
+
+  .balance-amount-info {
+    min-width: 75px;
   }
 
   /* Modal on Mobile: Slide from bottom */
@@ -985,10 +1218,31 @@
 
 @media (max-width: 420px) {
   .header-actions .btn {
-    padding: 5px 8px;
+    padding: 5px 6px;
+    font-size: 11px;
+  }
+
+  .header-actions .btn span {
+    font-size: 10.5px;
   }
 
   .category-grid-picker {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .tab-btn {
+    padding: 7px 1px;
+    font-size: 10.5px;
+    gap: 2px;
+  }
+
+  .tab-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .tab-badge {
+    padding: 0 3px;
+    font-size: 9px;
   }
 }
