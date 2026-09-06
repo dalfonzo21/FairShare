@@ -1,9 +1,5 @@
 import type { FairShareGroup, GroupSummary } from '../types/fairshare';
 
-const ACTIVE_GROUP_ID_KEY = 'fairshare_active_group_id';
-const GROUPS_STORAGE_PREFIX = 'fairshare_group_';
-const GROUPS_INDEX_KEY = 'fairshare_groups_index_v1';
-
 export const AVATAR_COLORS = [
   '#3B82F6', // Blue
   '#10B981', // Emerald
@@ -48,21 +44,25 @@ export const createEmptyGroup = (title = 'Mi Evento / Viaje'): FairShareGroup =>
   };
 };
 
+const getIndexKey = (userId = 'guest') => `fairshare_groups_index_${userId}`;
+const getActiveKey = (userId = 'guest') => `fairshare_active_id_${userId}`;
+const getGroupKey = (userId = 'guest', groupId: string) => `fairshare_group_${userId}_${groupId}`;
+
 /**
- * Returns summary list of all saved groups.
+ * Returns summary list of all saved groups for the active user.
  */
-export const getStoredGroupsIndex = (): GroupSummary[] => {
+export const getStoredGroupsIndex = (userId = 'guest'): GroupSummary[] => {
   try {
-    const raw = localStorage.getItem(GROUPS_INDEX_KEY);
+    const raw = localStorage.getItem(getIndexKey(userId));
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 };
 
-const updateStoredGroupsIndex = (group: FairShareGroup) => {
+export const updateStoredGroupsIndex = (group: FairShareGroup, userId = 'guest') => {
   try {
-    const index = getStoredGroupsIndex();
+    const index = getStoredGroupsIndex(userId);
     const existingIdx = index.findIndex((g) => g.id === group.id);
     const summary: GroupSummary = {
       id: group.id,
@@ -78,18 +78,18 @@ const updateStoredGroupsIndex = (group: FairShareGroup) => {
       index.unshift(summary);
     }
 
-    localStorage.setItem(GROUPS_INDEX_KEY, JSON.stringify(index));
+    localStorage.setItem(getIndexKey(userId), JSON.stringify(index));
   } catch (err) {
-    console.error('Error actualizando índice de grupos:', err);
+    console.error('Error actualizando índice:', err);
   }
 };
 
 /**
- * Gets a specific group by ID.
+ * Gets a specific group by ID for a user.
  */
-export const getStoredGroupById = (id: string): FairShareGroup | null => {
+export const getStoredGroupById = (groupId: string, userId = 'guest'): FairShareGroup | null => {
   try {
-    const raw = localStorage.getItem(`${GROUPS_STORAGE_PREFIX}${id}`);
+    const raw = localStorage.getItem(getGroupKey(userId, groupId));
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -97,25 +97,25 @@ export const getStoredGroupById = (id: string): FairShareGroup | null => {
 };
 
 /**
- * Loads current active group, or falls back to first saved group, or creates empty.
+ * Loads current active group for a user.
  */
-export const getStoredGroup = (preferredId?: string): FairShareGroup => {
+export const getStoredGroup = (userId = 'guest', preferredId?: string): FairShareGroup => {
   try {
-    const targetId = preferredId || localStorage.getItem(ACTIVE_GROUP_ID_KEY);
+    const targetId = preferredId || localStorage.getItem(getActiveKey(userId));
     if (targetId) {
-      const found = getStoredGroupById(targetId);
+      const found = getStoredGroupById(targetId, userId);
       if (found) return found;
     }
 
     // Check index
-    const index = getStoredGroupsIndex();
+    const index = getStoredGroupsIndex(userId);
     if (index.length > 0) {
-      const first = getStoredGroupById(index[0].id);
+      const first = getStoredGroupById(index[0].id, userId);
       if (first) return first;
     }
 
     const newGroup = createEmptyGroup();
-    saveStoredGroup(newGroup);
+    saveStoredGroup(newGroup, userId);
     return newGroup;
   } catch (err) {
     console.error('Error al cargar grupo:', err);
@@ -124,27 +124,27 @@ export const getStoredGroup = (preferredId?: string): FairShareGroup => {
 };
 
 /**
- * Saves group to LocalStorage and updates index.
+ * Saves group to LocalStorage per-user and updates index.
  */
-export const saveStoredGroup = (group: FairShareGroup): void => {
+export const saveStoredGroup = (group: FairShareGroup, userId = 'guest'): void => {
   try {
     const updated = { ...group, updatedAt: new Date().toISOString() };
-    localStorage.setItem(`${GROUPS_STORAGE_PREFIX}${group.id}`, JSON.stringify(updated));
-    localStorage.setItem(ACTIVE_GROUP_ID_KEY, group.id);
-    updateStoredGroupsIndex(updated);
+    localStorage.setItem(getGroupKey(userId, group.id), JSON.stringify(updated));
+    localStorage.setItem(getActiveKey(userId), group.id);
+    updateStoredGroupsIndex(updated, userId);
   } catch (err) {
     console.error('Error al guardar grupo:', err);
   }
 };
 
 /**
- * Deletes a group from LocalStorage.
+ * Deletes a group from LocalStorage for a user.
  */
-export const deleteStoredGroup = (id: string): void => {
+export const deleteStoredGroup = (groupId: string, userId = 'guest'): void => {
   try {
-    localStorage.removeItem(`${GROUPS_STORAGE_PREFIX}${id}`);
-    const index = getStoredGroupsIndex().filter((g) => g.id !== id);
-    localStorage.setItem(GROUPS_INDEX_KEY, JSON.stringify(index));
+    localStorage.removeItem(getGroupKey(userId, groupId));
+    const index = getStoredGroupsIndex(userId).filter((g) => g.id !== groupId);
+    localStorage.setItem(getIndexKey(userId), JSON.stringify(index));
   } catch (err) {
     console.error('Error al eliminar grupo:', err);
   }

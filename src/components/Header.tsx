@@ -9,22 +9,26 @@ import {
   FolderOpen, 
   Cloud, 
   HardDrive,
-  Link2
+  User as UserIcon,
+  LogOut
 } from 'lucide-react';
+import type { User } from 'firebase/auth';
 import type { FairShareGroup, GroupSummary } from '../types/fairshare';
+import { getInitials } from '../services/storage';
 
 interface HeaderProps {
   group: FairShareGroup;
   groupsIndex: GroupSummary[];
+  currentUser: User | null;
   onSelectGroup: (groupId: string) => void;
   onCreateNewGroup: () => void;
   onUpdateTitle: (title: string) => void;
   onUpdateCurrency: (currency: string) => void;
   onReset: () => void;
   onShare: () => void;
-  onCopyLink: () => void;
+  onOpenAuth: () => void;
+  onLogout: () => void;
   copied: boolean;
-  copiedLink: boolean;
   isCloud: boolean;
 }
 
@@ -42,18 +46,21 @@ const CURRENCIES = [
 export const Header: React.FC<HeaderProps> = ({
   group,
   groupsIndex,
+  currentUser,
   onSelectGroup,
   onCreateNewGroup,
   onUpdateTitle,
   onUpdateCurrency,
   onReset,
   onShare,
-  onCopyLink,
+  onOpenAuth,
+  onLogout,
   copied,
-  copiedLink,
   isCloud,
 }) => {
   const [showEventDropdown, setShowEventDropdown] = useState(false);
+
+  const displayName = currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Mi Cuenta';
 
   return (
     <header className="header-wrapper">
@@ -67,9 +74,9 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="brand-tagline">División de Gastos</span>
           </div>
 
-          {/* Cloud vs Local Indicator */}
+          {/* Cloud Indicator */}
           <div 
-            title={isCloud ? 'Sincronizado con Firebase Firestore' : 'Guardado en LocalStorage (Modo local)'}
+            title={isCloud ? (currentUser ? 'Sincronizado en tu cuenta' : 'Conectado a la nube') : 'Guardado en tu navegador (Local)'}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -84,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
             }}
           >
             {isCloud ? <Cloud size={12} /> : <HardDrive size={12} />}
-            <span>{isCloud ? 'Nube' : 'Local'}</span>
+            <span>{isCloud ? (currentUser ? 'Nube' : 'Online') : 'Local'}</span>
           </div>
         </div>
 
@@ -94,7 +101,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               className="btn btn-secondary btn-sm"
               onClick={() => setShowEventDropdown(!showEventDropdown)}
-              title="Ver otros eventos o viajes guardados"
+              title="Ver mis eventos o viajes guardados"
             >
               <FolderOpen size={14} />
               <span>Mis Eventos ({groupsIndex.length})</span>
@@ -118,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px 8px 8px', borderBottom: '1px solid var(--color-silver)' }}>
                   <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-slate)', textTransform: 'uppercase' }}>
-                    Eventos Guardados
+                    Mis Eventos
                   </span>
                   <button
                     className="btn btn-ghost btn-sm"
@@ -134,51 +141,48 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
-                  {groupsIndex.map((g) => (
-                    <button
-                      key={g.id}
-                      type="button"
-                      onClick={() => {
-                        onSelectGroup(g.id);
-                        setShowEventDropdown(false);
-                      }}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'flex-start',
-                        padding: '6px 8px',
-                        borderRadius: 'var(--radius-inputs)',
-                        background: g.id === group.id ? 'var(--color-silver-light)' : 'transparent',
-                        textAlign: 'left',
-                        width: '100%',
-                      }}
-                    >
-                      <span style={{ fontSize: '13px', fontWeight: g.id === group.id ? 600 : 500, color: 'var(--color-graphite)' }}>
-                        {g.title || 'Sin título'}
-                      </span>
-                      <span style={{ fontSize: '11px', color: 'var(--color-slate)' }}>
-                        {g.participantCount} personas • {g.expenseCount} gastos
-                      </span>
-                    </button>
-                  ))}
+                  {groupsIndex.length === 0 ? (
+                    <div style={{ padding: '12px 8px', fontSize: '12px', color: 'var(--color-slate)', textAlign: 'center' }}>
+                      No tienes otros eventos creados aún.
+                    </div>
+                  ) : (
+                    groupsIndex.map((g) => (
+                      <button
+                        key={g.id}
+                        type="button"
+                        onClick={() => {
+                          onSelectGroup(g.id);
+                          setShowEventDropdown(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'flex-start',
+                          padding: '6px 8px',
+                          borderRadius: 'var(--radius-inputs)',
+                          background: g.id === group.id ? 'var(--color-silver-light)' : 'transparent',
+                          textAlign: 'left',
+                          width: '100%',
+                        }}
+                      >
+                        <span style={{ fontSize: '13px', fontWeight: g.id === group.id ? 600 : 500, color: 'var(--color-graphite)' }}>
+                          {g.title || 'Sin título'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--color-slate)' }}>
+                          {g.participantCount} personas • {g.expenseCount} gastos
+                        </span>
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
             )}
           </div>
 
           <button
-            className="btn btn-secondary btn-sm"
-            onClick={onCopyLink}
-            title="Copiar enlace para compartir con amigos"
-          >
-            {copiedLink ? <Check size={14} /> : <Link2 size={14} />}
-            <span>{copiedLink ? 'Link Copiado' : 'Link de Grupo'}</span>
-          </button>
-
-          <button
             className="btn btn-ghost btn-sm"
             onClick={onReset}
-            title="Empezar desde cero"
+            title="Empezar desde cero este evento"
           >
             <RotateCcw size={14} />
             <span>Limpiar</span>
@@ -192,6 +196,42 @@ export const Header: React.FC<HeaderProps> = ({
             {copied ? <Check size={14} /> : <Share2 size={14} />}
             <span>{copied ? 'Copiado' : 'Compartir'}</span>
           </button>
+
+          {/* User Auth Profile / Login Button */}
+          {currentUser ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '4px' }}>
+              <div
+                className="avatar-circle"
+                style={{
+                  backgroundColor: 'var(--color-ink)',
+                  width: 28,
+                  height: 28,
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+                title={currentUser.email || displayName}
+              >
+                {getInitials(displayName)}
+              </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={onLogout}
+                title="Cerrar sesión"
+                style={{ padding: '6px' }}
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={onOpenAuth}
+              style={{ marginLeft: '4px' }}
+            >
+              <UserIcon size={14} />
+              <span>Iniciar Sesión</span>
+            </button>
+          )}
         </div>
       </div>
 

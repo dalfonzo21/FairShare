@@ -6,12 +6,14 @@ import {
   Check,
   Layers
 } from 'lucide-react';
+import type { User } from 'firebase/auth';
 import { Header } from './components/Header';
 import { StatsOverview } from './components/StatsOverview';
 import { ParticipantList } from './components/ParticipantList';
 import { ExpenseList } from './components/ExpenseList';
 import { ExpenseModal } from './components/ExpenseModal';
 import { SettlementView } from './components/SettlementView';
+import { AuthModal } from './components/AuthModal';
 import type { 
   FairShareGroup, 
   Expense, 
@@ -28,8 +30,11 @@ import {
 } from './services/storage';
 import { 
   isFirebaseConfigured, 
-  saveGroupToCloud, 
-  subscribeToCloudGroup 
+  onAuthChange, 
+  logoutUser, 
+  saveUserGroupToCloud, 
+  subscribeToUserGroup,
+  fetchUserCloudGroupsIndex 
 } from './services/firebase';
 import { 
   calculateBalances, 
@@ -39,59 +44,71 @@ import {
 import './App.css';
 
 export function App() {
-  // Read group ID from URL query parameters (e.g. ?group=viaje-amigos-123)
-  const getInitialGroupId = (): string | undefined => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('group') || undefined;
-  };
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const userId = currentUser ? currentUser.uid : 'guest';
 
-  const [group, setGroup] = useState<FairShareGroup>(() => getStoredGroup(getInitialGroupId()));
-  const [groupsIndex, setGroupsIndex] = useState<GroupSummary[]>(() => getStoredGroupsIndex());
+  const [group, setGroup] = useState<FairShareGroup>(() => getStoredGroup('guest'));
+  const [groupsIndex, setGroupsIndex] = useState<GroupSummary[]>(() => getStoredGroupsIndex('guest'));
   const [activeTab, setActiveTab] = useState<'all' | 'expenses' | 'settlement' | 'participants'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [copied, setCopied] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const isRemoteUpdate = useRef(false);
   const isCloud = isFirebaseConfigured();
 
-  // Keep URL in sync with active group ID
+  // Listen to Firebase Auth state
   useEffect(() => {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get('group') !== group.id) {
-      url.searchParams.set('group', group.id);
-      window.history.replaceState({}, '', url.toString());
-    }
-  }, [group.id]);
+    const unsubscribe = onAuthChange((user) => {
+      setCurrentUser(user);
+      const uid = user ? user.uid : 'guest';
+      const userGroup = getStoredGroup(uid);
+      setGroup(userGroup);
+      setGroupsIndex(getStoredGroupsIndex(uid));
 
-  // Real-time Firestore Subscription
-  useEffect(() => {
-    if (!isCloud) return;
-
-    const unsubscribe = subscribeToCloudGroup(group.id, (cloudGroup) => {
-      isRemoteUpdate.current = true;
-      setGroup(cloudGroup);
-      saveStoredGroup(cloudGroup);
-      setGroupsIndex(getStoredGroupsIndex());
+      if (user && isCloud) {
+        // Fetch cloud index for this user
+        fetchUserCloudGroupsIndex(user.uid).then((cloudList) => {
+          if (cloudList.length > 0) {
+            setGroupsIndex(cloudList);
+          }
+        });
+      }
     });
 
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [group.id, isCloud]);
+  }, [isCloud]);
 
-  // Auto-save to LocalStorage and sync to Firebase on change
+  // Real-time Firestore Subscription for the active user's active group
   useEffect(() => {
-    saveStoredGroup(group);
-    setGroupsIndex(getStoredGroupsIndex());
+    if (!isCloud || !currentUser) return;
 
-    if (isCloud && !isRemoteUpdate.current) {
-      saveGroupToCloud(group);
+    const unsubscribe = subscribeToUserGroup(currentUser.uid, group.id, (cloudGroup) => {
+      isRemoteUpdate.current = true;
+      setGroup(cloudGroup);
+      saveStoredGroup(cloudGroup, currentUser.uid);
+      setGroupsIndex(getStoredGroupsIndex(currentUser.uid));
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [group.id, currentUser, isCloud]);
+
+  // Auto-save to LocalStorage and user's private Firestore collection
+  useEffect(() => {
+    saveStoredGroup(group, userId);
+    setGroupsIndex(getStoredGroupsIndex(userId));
+
+    if (isCloud && currentUser && !isRemoteUpdate.current) {
+      saveUserGroupToCloud(currentUser.uid, group);
     }
     isRemoteUpdate.current = false;
-  }, [group, isCloud]);
+  }, [group, userId, currentUser, isCloud]);
 
   // Derived financial balances and settlements
   const balances = useMemo(() => {
@@ -115,13 +132,13 @@ export function App() {
 
   // Group Switcher Actions
   const handleSelectGroup = (groupId: string) => {
-    const selected = getStoredGroupById(groupId) || getStoredGroup(groupId);
+    const selected = getStoredGroupById(groupId, userId) || getStoredGroup(userId, groupId);
     setGroup(selected);
     showToast(`Cargando: ${selected.title || 'Evento'}`);
   };
 
   const handleCreateNewGroup = () => {
-    const newGroup = createEmptyGroup('Nuevo Evento / Viaje');
+    const newGroup = createEmptyGroup('Nuevo Evento');
     setGroup(newGroup);
     showToast('Nuevo evento creado.');
   };
@@ -279,19 +296,13 @@ export function App() {
     }
   };
 
-  // Copy Direct Link to Group
-  const handleCopyLink = async () => {
-    const url = `${window.location.origin}${window.location.pathname}?group=${group.id}`;
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(url);
-      }
-      setCopiedLink(true);
-      showToast('Enlace directo del evento copiado al portapapeles.');
-      setTimeout(() => setCopiedLink(false), 3000);
-    } catch {
-      showToast('No se pudo copiar el enlace.');
-    }
+  const handleLogout = async () => {
+    await logoutUser();
+    showToast('Sesión cerrada.');
+  };
+
+  const handleAuthSuccess = (name: string) => {
+    showToast(`¡Bienvenido, ${name}!`);
   };
 
   return (
@@ -300,15 +311,16 @@ export function App() {
       <Header
         group={group}
         groupsIndex={groupsIndex}
+        currentUser={currentUser}
         onSelectGroup={handleSelectGroup}
         onCreateNewGroup={handleCreateNewGroup}
         onUpdateTitle={handleUpdateTitle}
         onUpdateCurrency={handleUpdateCurrency}
         onReset={handleReset}
         onShare={handleShare}
-        onCopyLink={handleCopyLink}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onLogout={handleLogout}
         copied={copied}
-        copiedLink={copiedLink}
         isCloud={isCloud}
       />
 
@@ -445,6 +457,13 @@ export function App() {
         participants={group.participants}
         currency={group.currency}
         expenseToEdit={expenseToEdit}
+      />
+
+      {/* Auth Modal (Google / Email) */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={handleAuthSuccess}
       />
 
       {/* Toast Floating Notification */}
