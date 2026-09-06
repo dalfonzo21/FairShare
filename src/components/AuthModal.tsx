@@ -27,8 +27,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         onClose();
       }
     } catch (err: unknown) {
-      console.error(err);
-      setError('No se pudo iniciar sesión con Google. Intenta nuevamente.');
+      console.error('Google Auth Error:', err);
+      const errMsg = err instanceof Error ? err.message : '';
+      if (errMsg.includes('auth/unauthorized-domain')) {
+        setError('Dominio no autorizado. Agrega tu dominio de Vercel en Firebase Console -> Authentication -> Configuración -> Dominios autorizados.');
+      } else if (errMsg.includes('auth/popup-closed-by-user')) {
+        setError('Inicio de sesión cancelado.');
+      } else {
+        setError('No se pudo iniciar sesión con Google. Verifica la configuración de Firebase.');
+      }
     } finally {
       setLoading(false);
     }
@@ -59,7 +66,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
         }
       }
     } catch (err: unknown) {
-      console.error(err);
+      console.error('Email Auth Error:', err);
       const errMsg = err instanceof Error ? err.message : '';
       if (errMsg.includes('auth/invalid-credential') || errMsg.includes('auth/wrong-password') || errMsg.includes('auth/user-not-found')) {
         setError('Correo o contraseña incorrectos.');
@@ -98,11 +105,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
                 borderRadius: 'var(--radius-inputs)',
                 fontSize: '12px',
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 gap: '6px',
+                lineHeight: 1.4,
               }}
             >
-              <AlertCircle size={14} />
+              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
               <span>{error}</span>
             </div>
           )}
