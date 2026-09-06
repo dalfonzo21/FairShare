@@ -178,7 +178,7 @@
   align-items: center;
   gap: 8px;
   flex: 1;
-  min-width: 200px;
+  min-width: 0;
 }
 
 .event-title-input {
@@ -345,9 +345,25 @@
 
 /* Content Grid */
 .content-grid {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+.dual-column-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
 }
 
 @media (min-width: 992px) {
@@ -356,7 +372,113 @@
     grid-template-columns: 340px 1fr;
     gap: 20px;
     align-items: start;
+    width: 100%;
   }
+}
+
+.expense-filters-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: 100%;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.expense-search-wrapper {
+  position: relative;
+  flex: 1 1 180px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.expense-filter-select-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.expense-filter-select-wrapper select {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.color-palette-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 2px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Settlement View Layout */
+.settlement-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.settlement-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.settlement-header-text {
+  min-width: 0;
+}
+
+.panel-subtitle {
+  font-size: 13px;
+  color: var(--color-slate);
+  margin-top: 2px;
+}
+
+.expense-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.expense-header-title-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.view-mode-toggle-group {
+  display: flex;
+  background: var(--color-paper);
+  border-radius: var(--radius-pills);
+  padding: 2px;
+  border: 1px solid var(--color-silver);
+}
+
+.date-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--color-silver);
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Content Card Panels */
@@ -369,6 +491,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .panel-header {
@@ -376,6 +500,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  width: 100%;
 }
 
 .panel-title {
@@ -624,6 +749,11 @@
   color: var(--color-slate);
   width: 100%;
   justify-content: center;
+}
+
+.settlement-card .btn {
+  min-width: 110px;
+  flex-shrink: 0;
 }
 
 /* Balance Table Breakdown */
@@ -942,10 +1072,37 @@
   .main-container {
     padding: 14px 12px 60px 12px;
     gap: 16px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  .content-grid,
+  .dual-column-layout,
+  .settlement-view-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+
+  .glass-panel {
+    padding: 14px;
+    gap: 12px;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
   }
 
   .header-content {
     padding: 10px 12px;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
   }
 
   .brand-title {
@@ -1003,28 +1160,48 @@
   .stats-grid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .stat-card {
     padding: 12px;
     gap: 8px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-width: 0;
   }
 
   .stat-icon-wrapper {
     width: 32px;
     height: 32px;
+    flex-shrink: 0;
+  }
+
+  .stat-info {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
   }
 
   .stat-label {
     font-size: 10px;
+    white-space: nowrap;
   }
 
   .stat-value {
     font-size: 1.1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .stat-sub {
     font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Tabs Navigation on Mobile: Full-width responsive 4-segment control */
@@ -1039,6 +1216,7 @@
     border-radius: var(--radius-inputs);
     border: 1px solid var(--color-silver);
     overflow-x: hidden;
+    box-sizing: border-box;
   }
 
   .tab-btn {
@@ -1070,18 +1248,17 @@
   .event-title-card {
     padding: 10px 12px;
     gap: 8px;
-    flex-direction: column;
-    align-items: stretch;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .event-title-input-group {
     min-width: 0;
-    width: 100%;
+    flex: 1;
   }
 
   .currency-select-wrapper {
-    width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end;
   }
 
   .event-title-input {
@@ -1089,9 +1266,48 @@
     padding: 2px 4px;
   }
 
-  .glass-panel {
-    padding: 14px;
-    gap: 12px;
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .expense-filters-bar {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    flex-wrap: wrap;
+    box-sizing: border-box;
+  }
+
+  .expense-search-wrapper {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .expense-filter-select-wrapper {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .expense-filter-select-wrapper select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .color-palette-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* Responsive Settlement Card */
@@ -1100,6 +1316,8 @@
     align-items: stretch;
     gap: 10px;
     padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .settlement-card .btn {
@@ -1108,6 +1326,7 @@
 
   .settlement-flow {
     justify-content: space-between;
+    align-items: center;
     width: 100%;
     gap: 4px;
   }
@@ -1137,6 +1356,8 @@
     align-items: stretch;
     gap: 8px;
     padding: 10px 12px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .expense-left {
@@ -1168,6 +1389,8 @@
   .balance-row {
     padding: 8px 4px;
     gap: 6px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .balance-user-info {

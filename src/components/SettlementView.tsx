@@ -49,16 +49,16 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
   const maxAbsBalance = Math.max(...balances.map((b) => Math.abs(b.netBalance)), 1);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="settlement-view-container">
       {/* Smart Settlement Transfers Card */}
       <div className="glass-panel animate-fade">
-        <div className="panel-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
-          <div>
+        <div className="panel-header settlement-header">
+          <div className="settlement-header-text">
             <h3 className="panel-title">
               <Sparkles size={18} />
               <span>Liquidación Óptima</span>
             </h3>
-            <p style={{ fontSize: '13px', color: 'var(--color-slate)', marginTop: '2px' }}>
+            <p className="panel-subtitle">
               Transferencias mínimas calculadas para saldar todas las cuentas.
             </p>
           </div>
@@ -143,7 +143,6 @@ export const SettlementView: React.FC<SettlementViewProps> = ({
                 <button
                   className={`btn btn-sm ${tx.isSettled ? 'btn-secondary' : 'btn-primary'}`}
                   onClick={() => handleToggle(tx.id, tx.isSettled)}
-                  style={{ minWidth: '110px' }}
                 >
                   {tx.isSettled ? (
                     <>

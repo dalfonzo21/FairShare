@@ -58,16 +58,16 @@ export const ParticipantList: React.FC<ParticipantListProps> = ({
             placeholder="Nombre de la persona..."
             value={name}
             onChange={(e) => setName(e.target.value)}
-            style={{ flex: 1 }}
+            style={{ flex: 1, minWidth: 0 }}
           />
-          <button type="submit" className="btn btn-primary" disabled={!name.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={!name.trim()} style={{ flexShrink: 0 }}>
             <UserPlus size={14} />
             <span>Agregar</span>
           </button>
         </div>
 
         {/* Color Picker palette row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', padding: '2px 0' }}>
+        <div className="color-palette-row">
           <span style={{ fontSize: '11px', color: 'var(--color-slate)' }}>Tono:</span>
           {AVATAR_COLORS.map((color) => (
             <button

@@ -81,15 +81,15 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
 
   return (
     <div className="glass-panel animate-fade">
-      <div className="panel-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="panel-header expense-panel-header">
+        <div className="expense-header-title-box">
           <h3 className="panel-title">
             <Receipt size={18} />
             <span>Gastos ({expenses.length})</span>
           </h3>
 
           {expenses.length > 0 && (
-            <div style={{ display: 'flex', background: 'var(--color-paper)', borderRadius: 'var(--radius-pills)', padding: '2px', border: '1px solid var(--color-silver)' }}>
+            <div className="view-mode-toggle-group">
               <button
                 type="button"
                 className={`btn btn-sm ${viewMode === 'timeline' ? 'btn-primary' : 'btn-ghost'}`}
@@ -127,8 +127,8 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
 
       {/* Filter and Search Bar */}
       {expenses.length > 0 && (
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: '1', minWidth: '180px' }}>
+        <div className="expense-filters-bar">
+          <div className="expense-search-wrapper">
             <Search
               size={14}
               style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-stone)' }}
@@ -142,8 +142,8 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Filter size={14} color="var(--color-slate)" />
+          <div className="expense-filter-select-wrapper">
+            <Filter size={14} color="var(--color-slate)" style={{ flexShrink: 0 }} />
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
@@ -187,23 +187,15 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
             return (
               <div key={dateKey} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {/* Date Group Header */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '4px 8px',
-                    borderBottom: '1px solid var(--color-silver)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Calendar size={13} color="var(--color-slate)" />
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-graphite)', textTransform: 'capitalize' }}>
+                <div className="date-group-header">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                    <Calendar size={13} color="var(--color-slate)" style={{ flexShrink: 0 }} />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-graphite)', textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {formatDateLabel(dateKey)}
                     </span>
                   </div>
 
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-slate)' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-slate)', flexShrink: 0 }}>
                     Total: {formatCurrency(dayTotal, currency)} ({dayExpenses.length})
                   </span>
                 </div>

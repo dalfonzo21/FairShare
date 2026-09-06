@@ -112,6 +112,8 @@ input, select, textarea {
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
   max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 input::placeholder, textarea::placeholder {

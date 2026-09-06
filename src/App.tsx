@@ -418,36 +418,24 @@ export function App() {
         )}
 
         {activeTab === 'expenses' && (
-          <div className="dual-column-layout">
-            <ParticipantList
-              participants={group.participants}
-              balances={balances}
-              currency={group.currency}
-              onAddParticipant={handleAddParticipant}
-              onRemoveParticipant={handleRemoveParticipant}
-            />
-
-            <ExpenseList
-              expenses={group.expenses}
-              participants={group.participants}
-              currency={group.currency}
-              onOpenNewExpense={handleOpenNewExpense}
-              onEditExpense={handleEditExpense}
-              onDeleteExpense={handleDeleteExpense}
-            />
-          </div>
+          <ExpenseList
+            expenses={group.expenses}
+            participants={group.participants}
+            currency={group.currency}
+            onOpenNewExpense={handleOpenNewExpense}
+            onEditExpense={handleEditExpense}
+            onDeleteExpense={handleDeleteExpense}
+          />
         )}
 
         {activeTab === 'participants' && (
-          <div style={{ maxWidth: '650px', margin: '0 auto', width: '100%' }}>
-            <ParticipantList
-              participants={group.participants}
-              balances={balances}
-              currency={group.currency}
-              onAddParticipant={handleAddParticipant}
-              onRemoveParticipant={handleRemoveParticipant}
-            />
-          </div>
+          <ParticipantList
+            participants={group.participants}
+            balances={balances}
+            currency={group.currency}
+            onAddParticipant={handleAddParticipant}
+            onRemoveParticipant={handleRemoveParticipant}
+          />
         )}
       </main>
 
