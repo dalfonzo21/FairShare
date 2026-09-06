@@ -69,3 +69,11 @@ export interface FairShareGroup {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface GroupSummary {
+  id: string;
+  title: string;
+  updatedAt: string;
+  expenseCount: number;
+  participantCount: number;
+}

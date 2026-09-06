@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Receipt, 
   Users, 
@@ -15,14 +15,22 @@ import { SettlementView } from './components/SettlementView';
 import type { 
   FairShareGroup, 
   Expense, 
-  Person 
+  Person,
+  GroupSummary 
 } from './types/fairshare';
 import { 
   getStoredGroup, 
   saveStoredGroup, 
   createEmptyGroup, 
+  getStoredGroupsIndex,
+  getStoredGroupById,
   generateId 
 } from './services/storage';
+import { 
+  isFirebaseConfigured, 
+  saveGroupToCloud, 
+  subscribeToCloudGroup 
+} from './services/firebase';
 import { 
   calculateBalances, 
   calculateSettlements, 
@@ -31,17 +39,59 @@ import {
 import './App.css';
 
 export function App() {
-  const [group, setGroup] = useState<FairShareGroup>(() => getStoredGroup());
+  // Read group ID from URL query parameters (e.g. ?group=viaje-amigos-123)
+  const getInitialGroupId = (): string | undefined => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('group') || undefined;
+  };
+
+  const [group, setGroup] = useState<FairShareGroup>(() => getStoredGroup(getInitialGroupId()));
+  const [groupsIndex, setGroupsIndex] = useState<GroupSummary[]>(() => getStoredGroupsIndex());
   const [activeTab, setActiveTab] = useState<'all' | 'expenses' | 'settlement' | 'participants'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Auto-save to LocalStorage whenever group changes
+  const isRemoteUpdate = useRef(false);
+  const isCloud = isFirebaseConfigured();
+
+  // Keep URL in sync with active group ID
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('group') !== group.id) {
+      url.searchParams.set('group', group.id);
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, [group.id]);
+
+  // Real-time Firestore Subscription
+  useEffect(() => {
+    if (!isCloud) return;
+
+    const unsubscribe = subscribeToCloudGroup(group.id, (cloudGroup) => {
+      isRemoteUpdate.current = true;
+      setGroup(cloudGroup);
+      saveStoredGroup(cloudGroup);
+      setGroupsIndex(getStoredGroupsIndex());
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [group.id, isCloud]);
+
+  // Auto-save to LocalStorage and sync to Firebase on change
   useEffect(() => {
     saveStoredGroup(group);
-  }, [group]);
+    setGroupsIndex(getStoredGroupsIndex());
+
+    if (isCloud && !isRemoteUpdate.current) {
+      saveGroupToCloud(group);
+    }
+    isRemoteUpdate.current = false;
+  }, [group, isCloud]);
 
   // Derived financial balances and settlements
   const balances = useMemo(() => {
@@ -61,6 +111,19 @@ export function App() {
     setTimeout(() => {
       setToastMessage(null);
     }, 3500);
+  };
+
+  // Group Switcher Actions
+  const handleSelectGroup = (groupId: string) => {
+    const selected = getStoredGroupById(groupId) || getStoredGroup(groupId);
+    setGroup(selected);
+    showToast(`Cargando: ${selected.title || 'Evento'}`);
+  };
+
+  const handleCreateNewGroup = () => {
+    const newGroup = createEmptyGroup('Nuevo Evento / Viaje');
+    setGroup(newGroup);
+    showToast('Nuevo evento creado.');
   };
 
   // Participant Actions
@@ -95,7 +158,6 @@ export function App() {
     }
 
     setGroup((prev) => {
-      // Remove person from participants and from splitAmong lists
       const updatedExpenses = prev.expenses
         .filter((e) => e.paidBy !== id)
         .map((e) => ({
@@ -130,7 +192,6 @@ export function App() {
 
   const handleSaveExpense = (expenseData: Omit<Expense, 'id'>, editId?: string) => {
     if (editId) {
-      // Editing existing expense
       setGroup((prev) => ({
         ...prev,
         expenses: prev.expenses.map((e) =>
@@ -139,7 +200,6 @@ export function App() {
       }));
       showToast('Gasto actualizado con éxito.');
     } else {
-      // New expense
       const newExpense: Expense = {
         ...expenseData,
         id: generateId(),
@@ -186,8 +246,8 @@ export function App() {
   };
 
   const handleReset = () => {
-    if (window.confirm('¿Seguro que deseas reiniciar y borrar todos los datos del evento actual?')) {
-      const empty = createEmptyGroup();
+    if (window.confirm('¿Seguro que deseas reiniciar los datos de este evento?')) {
+      const empty = createEmptyGroup(group.title || 'Mi Evento / Viaje');
       setGroup(empty);
       showToast('Evento reiniciado.');
     }
@@ -203,7 +263,6 @@ export function App() {
         showToast('Resumen copiado al portapapeles.');
         setTimeout(() => setCopied(false), 3000);
       } else {
-        // Fallback
         const textarea = document.createElement('textarea');
         textarea.value = text;
         document.body.appendChild(textarea);
@@ -215,8 +274,23 @@ export function App() {
         setTimeout(() => setCopied(false), 3000);
       }
     } catch (err) {
-      console.error('Error copying text:', err);
+      console.error('Error al copiar texto:', err);
       showToast('No se pudo copiar automáticamente.');
+    }
+  };
+
+  // Copy Direct Link to Group
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}${window.location.pathname}?group=${group.id}`;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+      setCopiedLink(true);
+      showToast('Enlace directo del evento copiado al portapapeles.');
+      setTimeout(() => setCopiedLink(false), 3000);
+    } catch {
+      showToast('No se pudo copiar el enlace.');
     }
   };
 
@@ -225,11 +299,17 @@ export function App() {
       {/* Top Header */}
       <Header
         group={group}
+        groupsIndex={groupsIndex}
+        onSelectGroup={handleSelectGroup}
+        onCreateNewGroup={handleCreateNewGroup}
         onUpdateTitle={handleUpdateTitle}
         onUpdateCurrency={handleUpdateCurrency}
         onReset={handleReset}
         onShare={handleShare}
+        onCopyLink={handleCopyLink}
         copied={copied}
+        copiedLink={copiedLink}
+        isCloud={isCloud}
       />
 
       {/* Main Content Area */}
@@ -300,7 +380,7 @@ export function App() {
               />
             </div>
 
-            {/* Smart Settlement Resolution on full view */}
+            {/* Smart Settlement Resolution */}
             <SettlementView
               group={group}
               balances={balances}

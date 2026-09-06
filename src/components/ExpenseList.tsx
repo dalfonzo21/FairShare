@@ -7,7 +7,9 @@ import {
   Trash2, 
   Filter, 
   Calendar, 
-  Layers 
+  Layers,
+  CalendarDays,
+  List
 } from 'lucide-react';
 import type { Expense, ExpenseCategory, Person } from '../types/fairshare';
 import { CATEGORIES } from '../types/fairshare';
@@ -24,6 +26,22 @@ interface ExpenseListProps {
   onDeleteExpense: (id: string) => void;
 }
 
+const formatDateLabel = (dateStr: string): string => {
+  if (!dateStr) return 'Fecha sin especificar';
+  try {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+};
+
 export const ExpenseList: React.FC<ExpenseListProps> = ({
   expenses,
   participants,
@@ -34,6 +52,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline');
 
   const participantMap = new Map<string, Person>();
   participants.forEach((p) => participantMap.set(p.id, p));
@@ -50,13 +69,50 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
     return matchesSearch && matchesCategory;
   });
 
+  // Group expenses by date (sorted descending: newest first)
+  const groupedByDate = filteredExpenses.reduce<Record<string, Expense[]>>((acc, expense) => {
+    const d = expense.date || 'Sin fecha';
+    if (!acc[d]) acc[d] = [];
+    acc[d].push(expense);
+    return acc;
+  }, {});
+
+  const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
+
   return (
     <div className="glass-panel animate-fade">
       <div className="panel-header" style={{ flexWrap: 'wrap', gap: '12px' }}>
-        <h3 className="panel-title">
-          <Receipt size={18} />
-          <span>Gastos Registrados ({expenses.length})</span>
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h3 className="panel-title">
+            <Receipt size={18} />
+            <span>Gastos ({expenses.length})</span>
+          </h3>
+
+          {expenses.length > 0 && (
+            <div style={{ display: 'flex', background: 'var(--color-paper)', borderRadius: 'var(--radius-pills)', padding: '2px', border: '1px solid var(--color-silver)' }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${viewMode === 'timeline' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setViewMode('timeline')}
+                style={{ padding: '3px 8px', fontSize: '11px' }}
+                title="Agrupar por días"
+              >
+                <CalendarDays size={12} />
+                <span>Por Días</span>
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setViewMode('list')}
+                style={{ padding: '3px 8px', fontSize: '11px' }}
+                title="Ver lista corrida"
+              >
+                <List size={12} />
+                <span>Lista</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         <button
           className="btn btn-primary"
@@ -105,7 +161,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
       )}
 
       {/* Expenses Items List */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {expenses.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">
@@ -115,14 +171,131 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
             <p style={{ fontSize: '13px', maxWidth: '340px' }}>
               {participants.length === 0
                 ? 'Primero añade participantes a la izquierda.'
-                : 'Haz clic en "+ Nuevo Gasto" para agregar el primer comprobante.'}
+                : 'Haz clic en "+ Nuevo Gasto" para registrar el primer gasto.'}
             </p>
           </div>
         ) : filteredExpenses.length === 0 ? (
           <div className="empty-state" style={{ padding: '24px' }}>
             <p style={{ fontSize: '13px' }}>No se encontraron gastos coincidentes.</p>
           </div>
+        ) : viewMode === 'timeline' ? (
+          /* Timeline grouped by day view */
+          sortedDates.map((dateKey) => {
+            const dayExpenses = groupedByDate[dateKey];
+            const dayTotal = round2(dayExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
+
+            return (
+              <div key={dateKey} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Date Group Header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '4px 8px',
+                    borderBottom: '1px solid var(--color-silver)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Calendar size={13} color="var(--color-slate)" />
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-graphite)', textTransform: 'capitalize' }}>
+                      {formatDateLabel(dateKey)}
+                    </span>
+                  </div>
+
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-slate)' }}>
+                    Total: {formatCurrency(dayTotal, currency)} ({dayExpenses.length})
+                  </span>
+                </div>
+
+                {/* Day Expense Items */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {dayExpenses.map((expense) => {
+                    const payer = participantMap.get(expense.paidBy);
+                    const splitList = expense.splitAmong || [];
+                    const splitCount = splitList.length;
+                    const perPerson = splitCount > 0 ? round2(expense.amount / splitCount) : 0;
+
+                    return (
+                      <div key={expense.id} className="expense-item animate-slide">
+                        <div className="expense-left">
+                          <CategoryIcon category={expense.category} size={18} showBackground />
+
+                          <div className="expense-details">
+                            <div className="expense-title">{expense.title}</div>
+                            
+                            <div className="expense-meta-row">
+                              {payer && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ color: 'var(--color-slate)' }}>Pagó:</span>
+                                  <div
+                                    className="avatar-circle"
+                                    style={{
+                                      backgroundColor: payer.color,
+                                      color: '#ffffff',
+                                      width: 18,
+                                      height: 18,
+                                      fontSize: '9px',
+                                    }}
+                                  >
+                                    {getInitials(payer.name)}
+                                  </div>
+                                  <span className="expense-payer-tag">{payer.name}</span>
+                                </div>
+                              )}
+
+                              <span style={{ color: 'var(--color-silver)' }}>•</span>
+
+                              <span>
+                                Entre {splitCount} persona{splitCount > 1 ? 's' : ''}
+                              </span>
+                            </div>
+
+                            {expense.notes && (
+                              <div style={{ fontSize: '12px', color: 'var(--color-slate)', marginTop: '2px', fontStyle: 'italic' }}>
+                                "{expense.notes}"
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="expense-right">
+                          <div className="expense-amount-box">
+                            <div className="expense-amount">{formatCurrency(expense.amount, currency)}</div>
+                            <div className="expense-per-person">
+                              {formatCurrency(perPerson, currency)} c/u
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => onEditExpense(expense)}
+                              title="Editar gasto"
+                              style={{ padding: '6px' }}
+                            >
+                              <Edit3 size={14} />
+                            </button>
+
+                            <button
+                              className="btn btn-danger-ghost btn-sm"
+                              onClick={() => onDeleteExpense(expense.id)}
+                              title="Eliminar gasto"
+                              style={{ padding: '6px' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
         ) : (
+          /* Continuous flat list */
           filteredExpenses.map((expense) => {
             const payer = participantMap.get(expense.paidBy);
             const splitList = expense.splitAmong || [];
