@@ -60,7 +60,15 @@ export const getStoredGroupsIndex = (userId = 'guest'): GroupSummary[] => {
   }
 };
 
-export const updateStoredGroupsIndex = (group: FairShareGroup, userId = 'guest') => {
+export const saveStoredGroupsIndex = (index: GroupSummary[], userId = 'guest'): void => {
+  try {
+    localStorage.setItem(getIndexKey(userId), JSON.stringify(index));
+  } catch (err) {
+    console.error('Error guardando índice:', err);
+  }
+};
+
+export const updateStoredGroupsIndex = (group: FairShareGroup, userId = 'guest'): GroupSummary[] => {
   try {
     const index = getStoredGroupsIndex(userId);
     const existingIdx = index.findIndex((g) => g.id === group.id);
@@ -72,15 +80,19 @@ export const updateStoredGroupsIndex = (group: FairShareGroup, userId = 'guest')
       participantCount: group.participants.length,
     };
 
+    let updatedIndex: GroupSummary[];
     if (existingIdx >= 0) {
-      index[existingIdx] = summary;
+      updatedIndex = [...index];
+      updatedIndex[existingIdx] = summary;
     } else {
-      index.unshift(summary);
+      updatedIndex = [summary, ...index];
     }
 
-    localStorage.setItem(getIndexKey(userId), JSON.stringify(index));
+    localStorage.setItem(getIndexKey(userId), JSON.stringify(updatedIndex));
+    return updatedIndex;
   } catch (err) {
     console.error('Error actualizando índice:', err);
+    return getStoredGroupsIndex(userId);
   }
 };
 

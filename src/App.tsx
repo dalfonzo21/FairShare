@@ -25,6 +25,7 @@ import {
   saveStoredGroup, 
   createEmptyGroup, 
   getStoredGroupsIndex,
+  saveStoredGroupsIndex,
   getStoredGroupById,
   generateId 
 } from './services/storage';
@@ -34,7 +35,8 @@ import {
   logoutUser, 
   saveUserGroupToCloud, 
   subscribeToUserGroup,
-  fetchUserCloudGroupsIndex 
+  fetchUserCloudGroupsIndex,
+  fetchUserCloudGroup
 } from './services/firebase';
 import { 
   calculateBalances, 
@@ -61,20 +63,46 @@ export function App() {
 
   // Listen to Firebase Auth state
   useEffect(() => {
-    const unsubscribe = onAuthChange((user) => {
+    const unsubscribe = onAuthChange(async (user) => {
       setCurrentUser(user);
       const uid = user ? user.uid : 'guest';
+
+      if (user && isCloud) {
+        try {
+          const cloudList = await fetchUserCloudGroupsIndex(user.uid);
+          if (cloudList.length > 0) {
+            setGroupsIndex(cloudList);
+            saveStoredGroupsIndex(cloudList, user.uid);
+
+            const lastActiveId = localStorage.getItem(`fairshare_active_id_${user.uid}`);
+            const targetId = (lastActiveId && cloudList.some((g) => g.id === lastActiveId))
+              ? lastActiveId
+              : cloudList[0].id;
+
+            const localGroup = getStoredGroupById(targetId, user.uid);
+            if (localGroup) {
+              setGroup(localGroup);
+            } else {
+              const cloudGroup = await fetchUserCloudGroup(user.uid, targetId);
+              if (cloudGroup) {
+                isRemoteUpdate.current = true;
+                setGroup(cloudGroup);
+                saveStoredGroup(cloudGroup, user.uid);
+              } else {
+                setGroup(getStoredGroup(user.uid));
+              }
+            }
+            return;
+          }
+        } catch (err) {
+          console.error('Error sincronizando eventos desde la nube:', err);
+        }
+      }
+
+      // Default or Guest load
       const userGroup = getStoredGroup(uid);
       setGroup(userGroup);
       setGroupsIndex(getStoredGroupsIndex(uid));
-
-      if (user && isCloud) {
-        fetchUserCloudGroupsIndex(user.uid).then((cloudList) => {
-          if (cloudList.length > 0) {
-            setGroupsIndex(cloudList);
-          }
-        });
-      }
     });
 
     return () => {
@@ -90,7 +118,27 @@ export function App() {
       isRemoteUpdate.current = true;
       setGroup(cloudGroup);
       saveStoredGroup(cloudGroup, currentUser.uid);
-      setGroupsIndex(getStoredGroupsIndex(currentUser.uid));
+
+      // Preserve all events in groupsIndex while updating the active one
+      setGroupsIndex((prevIndex) => {
+        const existingIdx = prevIndex.findIndex((g) => g.id === cloudGroup.id);
+        const summary: GroupSummary = {
+          id: cloudGroup.id,
+          title: cloudGroup.title,
+          updatedAt: cloudGroup.updatedAt || new Date().toISOString(),
+          expenseCount: (cloudGroup.expenses || []).length,
+          participantCount: (cloudGroup.participants || []).length,
+        };
+        let updated: GroupSummary[];
+        if (existingIdx >= 0) {
+          updated = [...prevIndex];
+          updated[existingIdx] = summary;
+        } else {
+          updated = [summary, ...prevIndex];
+        }
+        saveStoredGroupsIndex(updated, currentUser.uid);
+        return updated;
+      });
     });
 
     return () => {
@@ -101,7 +149,27 @@ export function App() {
   // Auto-save to LocalStorage and user's private Firestore collection
   useEffect(() => {
     saveStoredGroup(group, userId);
-    setGroupsIndex(getStoredGroupsIndex(userId));
+
+    // Keep groupsIndex synchronized non-destructively
+    setGroupsIndex((prevIndex) => {
+      const existingIdx = prevIndex.findIndex((g) => g.id === group.id);
+      const summary: GroupSummary = {
+        id: group.id,
+        title: group.title,
+        updatedAt: group.updatedAt || new Date().toISOString(),
+        expenseCount: group.expenses.length,
+        participantCount: group.participants.length,
+      };
+      let updated: GroupSummary[];
+      if (existingIdx >= 0) {
+        updated = [...prevIndex];
+        updated[existingIdx] = summary;
+      } else {
+        updated = [summary, ...prevIndex];
+      }
+      saveStoredGroupsIndex(updated, userId);
+      return updated;
+    });
 
     if (isCloud && currentUser && !isRemoteUpdate.current) {
       saveUserGroupToCloud(currentUser.uid, group);
@@ -130,10 +198,34 @@ export function App() {
   };
 
   // Group Switcher Actions
-  const handleSelectGroup = (groupId: string) => {
-    const selected = getStoredGroupById(groupId, userId) || getStoredGroup(userId, groupId);
-    setGroup(selected);
-    showToast(`Cargando: ${selected.title || 'Evento'}`);
+  const handleSelectGroup = async (groupId: string) => {
+    if (groupId === group.id) return;
+
+    showToast('Cargando evento...');
+
+    // 1. Check local storage first
+    let selectedGroup = getStoredGroupById(groupId, userId);
+
+    // 2. If not found locally and user is logged in, fetch from Firestore cloud
+    if (!selectedGroup && isCloud && currentUser) {
+      try {
+        selectedGroup = await fetchUserCloudGroup(currentUser.uid, groupId);
+      } catch (err) {
+        console.error('Error al descargar evento desde Firestore:', err);
+      }
+    }
+
+    if (selectedGroup) {
+      isRemoteUpdate.current = true;
+      setGroup(selectedGroup);
+      saveStoredGroup(selectedGroup, userId);
+      localStorage.setItem(`fairshare_active_id_${userId}`, groupId);
+      showToast(`Cargado: ${selectedGroup.title || 'Evento'}`);
+    } else {
+      const fallback = getStoredGroup(userId, groupId);
+      setGroup(fallback);
+      showToast(`Cargando: ${fallback.title || 'Evento'}`);
+    }
   };
 
   const handleCreateNewGroup = () => {
@@ -263,7 +355,10 @@ export function App() {
 
   const handleReset = () => {
     if (window.confirm('¿Seguro que deseas reiniciar los datos de este evento?')) {
-      const empty = createEmptyGroup(group.title || 'Mi Evento / Viaje');
+      const empty: FairShareGroup = {
+        ...createEmptyGroup(group.title || 'Mi Evento / Viaje'),
+        id: group.id,
+      };
       setGroup(empty);
       showToast('Evento reiniciado.');
     }
@@ -297,6 +392,9 @@ export function App() {
 
   const handleLogout = async () => {
     await logoutUser();
+    const guestGroup = getStoredGroup('guest');
+    setGroup(guestGroup);
+    setGroupsIndex(getStoredGroupsIndex('guest'));
     showToast('Sesión cerrada.');
   };
 

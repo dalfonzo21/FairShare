@@ -2,6 +2,8 @@ import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { 
   getFirestore, 
   doc, 
+  getDoc,
+  deleteDoc,
   setDoc, 
   getDocs,
   collection,
@@ -182,3 +184,43 @@ export const fetchUserCloudGroupsIndex = async (userId: string): Promise<GroupSu
     return [];
   }
 };
+
+/**
+ * Fetches a single group by ID for a user from Firestore.
+ */
+export const fetchUserCloudGroup = async (userId: string, groupId: string): Promise<FairShareGroup | null> => {
+  if (!db || !isFirebaseConfigured() || !userId || !groupId) {
+    return null;
+  }
+
+  try {
+    const groupRef = doc(db, 'users', userId, 'groups', groupId);
+    const snap = await getDoc(groupRef);
+    if (snap.exists()) {
+      return snap.data() as FairShareGroup;
+    }
+    return null;
+  } catch (err) {
+    console.error('Error obteniendo grupo de Firestore:', err);
+    return null;
+  }
+};
+
+/**
+ * Deletes a group for a user from Firestore.
+ */
+export const deleteUserCloudGroup = async (userId: string, groupId: string): Promise<boolean> => {
+  if (!db || !isFirebaseConfigured() || !userId || !groupId) {
+    return false;
+  }
+
+  try {
+    const groupRef = doc(db, 'users', userId, 'groups', groupId);
+    await deleteDoc(groupRef);
+    return true;
+  } catch (err) {
+    console.error('Error eliminando grupo de Firestore:', err);
+    return false;
+  }
+};
+
