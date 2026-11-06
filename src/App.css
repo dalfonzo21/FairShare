@@ -1469,3 +1469,333 @@
     font-size: 9px;
   }
 }
+
+/* ==========================================================================
+   Advanced Multi-Payer & Itemized Split Styles
+   ========================================================================== */
+
+.modal-dialog.modal-lg {
+  max-width: 620px;
+}
+
+/* Segmented Control / Tabs inside modal */
+.segmented-control {
+  display: flex;
+  background: var(--color-paper);
+  padding: 4px;
+  border-radius: var(--radius-inputs);
+  border: 1px solid var(--color-silver);
+  gap: 4px;
+  width: 100%;
+}
+
+.segmented-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-slate);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.segmented-btn:hover {
+  color: var(--color-ink);
+}
+
+.segmented-btn.active {
+  background: var(--color-white);
+  color: var(--color-ink);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-card);
+}
+
+/* Items Builder in Modal */
+.items-builder-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-row-card {
+  background: var(--color-silver-light);
+  border: 1px solid var(--color-silver);
+  border-radius: var(--radius-inputs);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s;
+}
+
+.item-row-card:focus-within {
+  border-color: var(--color-ink);
+}
+
+.item-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item-row-top input[type="text"] {
+  flex: 2;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.item-row-top .item-amount-input {
+  flex: 1;
+  font-size: 13px;
+  padding: 6px 10px;
+}
+
+.item-consumers-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--color-silver);
+}
+
+.consumer-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-pills);
+  font-size: 11.5px;
+  cursor: pointer;
+  border: 1px solid var(--color-silver);
+  background: var(--color-white);
+  color: var(--color-graphite);
+  transition: all 0.12s ease;
+}
+
+.consumer-chip-btn.selected {
+  background: var(--color-ink);
+  color: var(--color-white);
+  border-color: var(--color-ink);
+}
+
+.consumer-chip-btn.selected .avatar-circle {
+  border: 1px solid var(--color-white);
+}
+
+/* Multi-Payer List */
+.multi-payer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--color-silver-light);
+  border: 1px solid var(--color-silver);
+  border-radius: var(--radius-inputs);
+  padding: 10px;
+}
+
+.payer-row-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--color-white);
+  border: 1px solid var(--color-silver);
+  border-radius: var(--radius-inputs);
+  padding: 6px 10px;
+}
+
+.payer-info-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.payer-name-text {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.payer-input-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.payer-input-right input {
+  width: 90px;
+  font-size: 13px;
+  padding: 5px 8px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.btn-fill-remainder {
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-paper);
+  border: 1px solid var(--color-silver);
+  color: var(--color-slate);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-fill-remainder:hover {
+  background: var(--color-silver);
+  color: var(--color-ink);
+}
+
+/* Live Payment Tracker Status */
+.payment-tracker-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: var(--radius-inputs);
+  font-size: 12.5px;
+  gap: 8px;
+}
+
+.payment-tracker-banner.balanced {
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
+  color: var(--color-success);
+}
+
+.payment-tracker-banner.underpaid {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  color: #b45309;
+}
+
+.payment-tracker-banner.overpaid {
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Live Expense Balance Preview */
+.expense-preview-section {
+  border: 1px solid var(--color-silver);
+  background: var(--color-silver-light);
+  border-radius: var(--radius-inputs);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.expense-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-slate);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.preview-participant-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.preview-participant-row:last-child {
+  border-bottom: none;
+}
+
+.preview-balance-tag {
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pills);
+}
+
+.preview-balance-tag.credit {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.preview-balance-tag.debt {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.preview-balance-tag.zero {
+  background: var(--color-paper);
+  color: var(--color-slate);
+}
+
+/* Expense List tags & breakdown */
+.vaca-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6fe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-pills);
+  border: 1px solid #bfdbfe;
+}
+
+.items-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #fdf4ff;
+  color: #86198f;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-pills);
+  border: 1px solid #f5d0fe;
+  cursor: pointer;
+}
+
+.expense-items-details {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--color-silver-light);
+  border: 1px solid var(--color-silver);
+  border-radius: var(--radius-inputs);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.item-detail-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.item-detail-consumers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-slate);
+  font-size: 11px;
+}
+

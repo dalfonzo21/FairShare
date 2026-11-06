@@ -1,4 +1,16 @@
-import type { Person, Expense, PersonBalance, SettlementTransaction, FairShareGroup } from '../types/fairshare';
+import type { 
+  Person, 
+  Expense, 
+  PersonBalance, 
+  SettlementTransaction, 
+  FairShareGroup,
+  CashRoundingScale,
+  CashRoundingStrategy,
+  SurplusDestination,
+  CashRoundingOptions,
+  CashSettlementDetail,
+  CashSettlementSummary,
+} from '../types/fairshare';
 
 /**
  * Rounds a number to 2 decimal places to avoid floating point precision issues.
@@ -46,24 +58,106 @@ export const calculateBalances = (
     const amount = Number(expense.amount) || 0;
     if (amount <= 0) return;
 
-    // Add to payer's total paid
-    const currentPaid = paidMap.get(expense.paidBy) || 0;
-    paidMap.set(expense.paidBy, currentPaid + amount);
-
-    // Determine who splits this expense
-    const splitTargetIds = expense.splitAmong && expense.splitAmong.length > 0
-      ? expense.splitAmong
-      : participants.map((p) => p.id);
-
-    // Filter valid participant IDs
-    const validTargetIds = splitTargetIds.filter((id) => participantMap.has(id));
-
-    if (validTargetIds.length > 0) {
-      const share = amount / validTargetIds.length;
-      validTargetIds.forEach((pId) => {
-        const currentOwed = owedMap.get(pId) || 0;
-        owedMap.set(pId, currentOwed + share);
+    // 1. Who paid? (Contributions / Haber)
+    if (expense.payers && expense.payers.length > 0) {
+      // Multi-payer support (Vaca / Partial contributions)
+      expense.payers.forEach((payer) => {
+        if (participantMap.has(payer.personId)) {
+          const payerAmt = Number(payer.amount) || 0;
+          if (payerAmt > 0) {
+            const currentPaid = paidMap.get(payer.personId) || 0;
+            paidMap.set(payer.personId, currentPaid + payerAmt);
+          }
+        }
       });
+    } else if (expense.paidBy && participantMap.has(expense.paidBy)) {
+      // Single payer
+      const currentPaid = paidMap.get(expense.paidBy) || 0;
+      paidMap.set(expense.paidBy, currentPaid + amount);
+    }
+
+    // 2. Who owes? (Consumptions / Debe)
+    if (expense.splitType === 'items' && expense.items && expense.items.length > 0) {
+      let itemsSum = 0;
+      const itemConsumers = new Set<string>();
+
+      expense.items.forEach((item) => {
+        const itemAmt = Number(item.amount) || 0;
+        if (itemAmt <= 0) return;
+        itemsSum += itemAmt;
+
+        const assignedIds = (item.assignedTo && item.assignedTo.length > 0)
+          ? item.assignedTo.filter((id) => participantMap.has(id))
+          : participants.map((p) => p.id);
+
+        if (assignedIds.length > 0) {
+          const share = itemAmt / assignedIds.length;
+          assignedIds.forEach((pId) => {
+            itemConsumers.add(pId);
+            const currentOwed = owedMap.get(pId) || 0;
+            owedMap.set(pId, currentOwed + share);
+          });
+        }
+      });
+
+      // Handle extra fee or remainder if itemsSum != amount
+      const remainder = round2(amount - itemsSum);
+      if (Math.abs(remainder) > 0.009) {
+        let targetIds: string[] = [];
+        if (expense.extraFeeSplitType === 'all') {
+          targetIds = participants.map((p) => p.id);
+        } else if (itemConsumers.size > 0) {
+          targetIds = Array.from(itemConsumers);
+        } else {
+          targetIds = participants.map((p) => p.id);
+        }
+
+        if (targetIds.length > 0) {
+          const remainderShare = remainder / targetIds.length;
+          targetIds.forEach((pId) => {
+            const currentOwed = owedMap.get(pId) || 0;
+            owedMap.set(pId, currentOwed + remainderShare);
+          });
+        }
+      }
+    } else if (expense.splitType === 'exact' && expense.customSplits && expense.customSplits.length > 0) {
+      let customSum = 0;
+      const targetIds: string[] = [];
+
+      expense.customSplits.forEach((split) => {
+        if (participantMap.has(split.personId)) {
+          const splitAmt = Number(split.amount) || 0;
+          customSum += splitAmt;
+          targetIds.push(split.personId);
+          const currentOwed = owedMap.get(split.personId) || 0;
+          owedMap.set(split.personId, currentOwed + splitAmt);
+        }
+      });
+
+      // If customSum differs slightly from total amount, allocate remainder among assigned targets
+      const remainder = round2(amount - customSum);
+      if (Math.abs(remainder) > 0.009 && targetIds.length > 0) {
+        const remainderShare = remainder / targetIds.length;
+        targetIds.forEach((pId) => {
+          const currentOwed = owedMap.get(pId) || 0;
+          owedMap.set(pId, currentOwed + remainderShare);
+        });
+      }
+    } else {
+      // Default: Equal split among splitAmong
+      const splitTargetIds = expense.splitAmong && expense.splitAmong.length > 0
+        ? expense.splitAmong
+        : participants.map((p) => p.id);
+
+      const validTargetIds = splitTargetIds.filter((id) => participantMap.has(id));
+
+      if (validTargetIds.length > 0) {
+        const share = amount / validTargetIds.length;
+        validTargetIds.forEach((pId) => {
+          const currentOwed = owedMap.get(pId) || 0;
+          owedMap.set(pId, currentOwed + share);
+        });
+      }
     }
   });
 
@@ -150,12 +244,124 @@ export const calculateSettlements = (
 };
 
 /**
- * Generates an easily readable text summary for WhatsApp sharing without emojis.
+ * Returns human-readable label for cash rounding scale.
+ */
+export const getScaleLabel = (scale: CashRoundingScale): string => {
+  switch (scale) {
+    case 0.05:
+      return '5¢ (Níquel)';
+    case 0.10:
+      return '10¢ (Dime)';
+    case 0.25:
+      return '25¢ (Cuarto)';
+    case 0.50:
+      return '50¢ (Medio Dólar)';
+    case 1.00:
+      return '$1.00 (Entero)';
+    default:
+      return '1¢ (Exacto)';
+  }
+};
+
+/**
+ * Returns human-readable label for surplus destination.
+ */
+export const getSurplusDestinationLabel = (destination: SurplusDestination): string => {
+  switch (destination) {
+    case 'tip_pool':
+      return 'Fondo Común / Propina';
+    case 'creditor':
+      return 'A favor de quien cobra';
+    case 'debtor_discount':
+      return 'Descuento al que paga';
+    default:
+      return 'Fondo Común';
+  }
+};
+
+/**
+ * Rounds an amount to a specific cash coin scale (5¢, 10¢, 25¢, 50¢, $1).
+ */
+export const roundToCoinScale = (
+  amount: number,
+  scale: CashRoundingScale,
+  strategy: CashRoundingStrategy = 'nearest'
+): number => {
+  if (scale <= 0.01 || amount <= 0) return round2(amount);
+
+  const factor = Math.round(1 / scale);
+  if (strategy === 'up') {
+    return round2(Math.ceil((amount - 1e-9) * factor) / factor);
+  }
+  if (strategy === 'down') {
+    return round2(Math.max(0, Math.floor((amount + 1e-9) * factor) / factor));
+  }
+  // nearest
+  return round2(Math.round(amount * factor) / factor);
+};
+
+/**
+ * Generates the cash settlements breakdown with excedent calculations.
+ */
+export const calculateCashSettlements = (
+  transactions: SettlementTransaction[],
+  options: CashRoundingOptions
+): CashSettlementSummary => {
+  const details: CashSettlementDetail[] = transactions.map((tx) => {
+    const exact = round2(tx.amount);
+    let cash = roundToCoinScale(exact, options.scale, options.strategy);
+    if (cash === 0 && exact > 0 && options.scale > 0.01 && options.strategy !== 'down') {
+      cash = options.scale;
+    }
+    const diff = round2(cash - exact);
+    return {
+      transactionId: tx.id,
+      fromPerson: tx.fromPerson,
+      toPerson: tx.toPerson,
+      exactAmount: exact,
+      cashAmount: cash,
+      difference: diff,
+      isSettled: tx.isSettled,
+    };
+  });
+
+  const totalExact = round2(details.reduce((acc, d) => acc + d.exactAmount, 0));
+  const totalCash = round2(details.reduce((acc, d) => acc + d.cashAmount, 0));
+  const totalSurplus = round2(totalCash - totalExact);
+
+  return {
+    details,
+    totalExact,
+    totalCash,
+    totalSurplus,
+    scale: options.scale,
+    strategy: options.strategy,
+    surplusDestination: options.surplusDestination,
+  };
+};
+
+/**
+ * Calculates a fair cash approximation using standard physical circulating coins (5¢ scale),
+ * resolving debts without requiring impossible 1, 2, or 3 cent coins.
+ */
+export const calculateFairCashSettlements = (
+  transactions: SettlementTransaction[]
+): CashSettlementSummary => {
+  return calculateCashSettlements(transactions, {
+    scale: 0.05,
+    strategy: 'nearest',
+    surplusDestination: 'tip_pool',
+  });
+};
+
+/**
+ * Generates an easily readable text summary for WhatsApp sharing.
  */
 export const generateWhatsAppSummary = (
   group: FairShareGroup,
   balances: PersonBalance[],
-  settlements: SettlementTransaction[]
+  settlements: SettlementTransaction[],
+  cashSummary?: CashSettlementSummary | null
 ): string => {
   const totalSpent = round2(group.expenses.reduce((acc, exp) => acc + (Number(exp.amount) || 0), 0));
   const avgPerPerson = group.participants.length > 0
@@ -188,10 +394,31 @@ export const generateWhatsAppSummary = (
   if (settlements.length === 0) {
     lines.push(`Todas las cuentas están totalmente equilibradas. No hay pagos pendientes.`);
   } else {
+    // 1. Digital transfer option (exact to the cent)
+    lines.push(`💳 *Por Transferencia (Exacto al centavo)*:`);
     settlements.forEach((s) => {
-      const settledMark = s.isSettled ? '[PAGADO]' : '[PENDIENTE]';
-      lines.push(`${settledMark} *${s.fromPerson.name}* transfiere *${formatCurrency(s.amount, group.currency)}* a *${s.toPerson.name}*`);
+      const settledMark = s.isSettled ? '[PAGADO] ' : '';
+      lines.push(`${settledMark}- *${s.fromPerson.name}* transfiere *${formatCurrency(s.amount, group.currency)}* a *${s.toPerson.name}*`);
     });
+
+    // 2. Physical cash option (fair approximation)
+    if (cashSummary) {
+      lines.push(``);
+      lines.push(`💵 *En Efectivo (Aproximado Justo en Monedas)*:`);
+      cashSummary.details.forEach((d) => {
+        const settledMark = d.isSettled ? '[PAGADO] ' : '';
+        const diffText = d.difference > 0.009
+          ? ` (+${formatCurrency(d.difference, group.currency)} diferencia)`
+          : d.difference < -0.009
+            ? ` (-${formatCurrency(Math.abs(d.difference), group.currency)} diferencia)`
+            : ` (exacto)`;
+        lines.push(`${settledMark}- *${d.fromPerson.name}* entrega *${formatCurrency(d.cashAmount, group.currency)}* a *${d.toPerson.name}*${diffText}`);
+      });
+
+      if (Math.abs(cashSummary.totalSurplus) > 0.009) {
+        lines.push(`ℹ️ Diferencia en efectivo: ${cashSummary.totalSurplus > 0 ? '+' : ''}${formatCurrency(cashSummary.totalSurplus, group.currency)} (casi no se cuenta; propina o a favor de quien cobra)`);
+      }
+    }
   }
 
   lines.push(``);

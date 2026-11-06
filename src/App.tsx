@@ -12,13 +12,15 @@ import { StatsOverview } from './components/StatsOverview';
 import { ParticipantList } from './components/ParticipantList';
 import { ExpenseList } from './components/ExpenseList';
 import { ExpenseModal } from './components/ExpenseModal';
+import { SmartSplitModal } from './components/SmartSplitModal';
 import { SettlementView } from './components/SettlementView';
 import { AuthModal } from './components/AuthModal';
 import type { 
   FairShareGroup, 
   Expense, 
   Person,
-  GroupSummary 
+  GroupSummary,
+  CashSettlementSummary
 } from './types/fairshare';
 import { 
   getStoredGroup, 
@@ -53,6 +55,8 @@ export function App() {
   const [groupsIndex, setGroupsIndex] = useState<GroupSummary[]>(() => getStoredGroupsIndex('guest'));
   const [activeTab, setActiveTab] = useState<'all' | 'expenses' | 'settlement' | 'participants'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSmartSplitOpen, setIsSmartSplitOpen] = useState(false);
+  const [smartSplitExpense, setSmartSplitExpense] = useState<Expense | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [copied, setCopied] = useState(false);
@@ -255,7 +259,12 @@ export function App() {
     if (!person) return;
 
     const hasExpenses = group.expenses.some(
-      (e) => e.paidBy === id || (e.splitAmong && e.splitAmong.includes(id))
+      (e) =>
+        e.paidBy === id ||
+        (e.splitAmong && e.splitAmong.includes(id)) ||
+        (e.payers && e.payers.some((p) => p.personId === id)) ||
+        (e.customSplits && e.customSplits.some((s) => s.personId === id)) ||
+        (e.items && e.items.some((it) => it.assignedTo.includes(id)))
     );
 
     if (hasExpenses) {
@@ -266,16 +275,51 @@ export function App() {
     }
 
     setGroup((prev) => {
+      const remainingParticipants = prev.participants.filter((p) => p.id !== id);
+      const fallbackPayerId = remainingParticipants[0]?.id || '';
+
       const updatedExpenses = prev.expenses
-        .filter((e) => e.paidBy !== id)
-        .map((e) => ({
-          ...e,
-          splitAmong: e.splitAmong.filter((pId) => pId !== id),
-        }));
+        .filter((e) => {
+          const hasOtherPayers = e.payers && e.payers.some((p) => p.personId !== id && p.amount > 0);
+          if (e.paidBy === id && !hasOtherPayers && remainingParticipants.length === 0) {
+            return false;
+          }
+          return true;
+        })
+        .map((e) => {
+          const updatedPayers = e.payers
+            ? e.payers.filter((p) => p.personId !== id)
+            : undefined;
+
+          const updatedSplits = e.customSplits
+            ? e.customSplits.filter((s) => s.personId !== id)
+            : undefined;
+
+          const updatedItems = e.items
+            ? e.items.map((item) => ({
+                ...item,
+                assignedTo: item.assignedTo.filter((pId) => pId !== id),
+              }))
+            : undefined;
+
+          let updatedPaidBy = e.paidBy;
+          if (e.paidBy === id) {
+            updatedPaidBy = (updatedPayers && updatedPayers[0]?.personId) || fallbackPayerId;
+          }
+
+          return {
+            ...e,
+            paidBy: updatedPaidBy,
+            payers: updatedPayers && updatedPayers.length > 0 ? updatedPayers : undefined,
+            customSplits: updatedSplits && updatedSplits.length > 0 ? updatedSplits : undefined,
+            items: updatedItems,
+            splitAmong: e.splitAmong.filter((pId) => pId !== id),
+          };
+        });
 
       return {
         ...prev,
-        participants: prev.participants.filter((p) => p.id !== id),
+        participants: remainingParticipants,
         expenses: updatedExpenses,
       };
     });
@@ -296,6 +340,15 @@ export function App() {
   const handleEditExpense = (expense: Expense) => {
     setExpenseToEdit(expense);
     setIsModalOpen(true);
+  };
+
+  const handleOpenSmartSplit = (expense?: Expense) => {
+    if (group.participants.length === 0) {
+      showToast('Agrega al menos un participante primero.');
+      return;
+    }
+    setSmartSplitExpense(expense || null);
+    setIsSmartSplitOpen(true);
   };
 
   const handleSaveExpense = (expenseData: Omit<Expense, 'id'>, editId?: string) => {
@@ -365,8 +418,8 @@ export function App() {
   };
 
   // WhatsApp / Clipboard Export
-  const handleShare = async () => {
-    const text = generateWhatsAppSummary(group, balances, settlements);
+  const handleShare = async (cashSummary?: CashSettlementSummary | null) => {
+    const text = generateWhatsAppSummary(group, balances, settlements, cashSummary);
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
@@ -487,6 +540,7 @@ export function App() {
                 participants={group.participants}
                 currency={group.currency}
                 onOpenNewExpense={handleOpenNewExpense}
+                onOpenSmartSplit={handleOpenSmartSplit}
                 onEditExpense={handleEditExpense}
                 onDeleteExpense={handleDeleteExpense}
               />
@@ -521,6 +575,7 @@ export function App() {
             participants={group.participants}
             currency={group.currency}
             onOpenNewExpense={handleOpenNewExpense}
+            onOpenSmartSplit={handleOpenSmartSplit}
             onEditExpense={handleEditExpense}
             onDeleteExpense={handleDeleteExpense}
           />
@@ -545,7 +600,30 @@ export function App() {
         participants={group.participants}
         currency={group.currency}
         expenseToEdit={expenseToEdit}
+        onOpenSmartSplit={() => {
+          setIsModalOpen(false);
+          handleOpenSmartSplit(expenseToEdit || undefined);
+        }}
       />
+
+      {/* Smart Split Assistant Modal (Vaca & Cuentas Grandes) */}
+      {isSmartSplitOpen && (
+        <SmartSplitModal
+          isOpen={isSmartSplitOpen}
+          onClose={() => {
+            setIsSmartSplitOpen(false);
+            setSmartSplitExpense(null);
+          }}
+          participants={group.participants}
+          currency={group.currency}
+          onSaveExpense={(data) => {
+            handleSaveExpense(data, smartSplitExpense ? smartSplitExpense.id : undefined);
+            setSmartSplitExpense(null);
+          }}
+          onShowToast={showToast}
+          initialExpense={smartSplitExpense}
+        />
+      )}
 
       {/* Auth Modal (Google / Email) */}
       <AuthModal
